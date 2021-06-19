@@ -6,35 +6,18 @@ import asyncio
 
 from ..layer import ServerTransportLayer
 
+from .protocol import TcpProtocol
 
-
-class TcpServerProtocol(asyncio.Protocol):
-    def __init__(self, layer):
-        self.layer = layer
-        self.message = "hello from server"
-
-    def connection_made(self, transport):
-        transport.write(self.message.encode())
-        print('Data sent: {!r}'.format(self.message))
-        #self.layer.announce_nexus("boof")
-
-    def data_received(self, data):
-        print('Data received: {!r}'.format(data.decode()))
-
-    def connection_lost(self, exc):
-        print('The server closed the connection')
-        #self.layer.revoke_nexus("boof")
-
-        # transport.close()?
 
 
 class TcpServerLayer(ServerTransportLayer):
     def __init__(self):
         super().__init__()
+        self.shared_seed = None
 
     async def listen_server(self, host, port):
         loop = asyncio.get_running_loop()
-        server = await loop.create_server(lambda: TcpServerProtocol(self),
+        server = await loop.create_server(lambda: TcpProtocol(self, None),
                                           host, port)
         await server.start_serving()
         print("server: %s" % server)

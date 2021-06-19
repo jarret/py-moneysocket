@@ -5,28 +5,8 @@
 import asyncio
 
 from ..layer import ClientTransportLayer
+from .protocol import TcpProtocol
 
-
-
-class TcpClientProtocol(asyncio.Protocol):
-    def __init__(self, layer):
-        self.layer = layer
-        self.message = "hello from client"
-
-    def connection_made(self, transport):
-        print("connection made call: %s" % transport)
-        transport.write(self.message.encode())
-        print('Data sent: {!r}'.format(self.message))
-        #self.layer.announce_nexus("boof")
-
-    def data_received(self, data):
-        print('Data received: {!r}'.format(data.decode()))
-
-    def connection_lost(self, exc):
-        print('The server closed the connection')
-        #self.layer.revoke_nexus("boof")
-
-        # transport.close()?
 
 class TcpClientLayer(ClientTransportLayer):
     def __init__(self):
@@ -51,11 +31,13 @@ class TcpClientLayer(ClientTransportLayer):
         # add task to event loop and carry on?
 
     async def connect2(self, host, port):
+        shared_seed = "TODO: pull from beacon"
         loop = asyncio.get_running_loop()
         print("client connecting:")
         transport, protocol = await loop.create_connection(
-            lambda: TcpClientProtocol(self), host, port)
+            lambda: TcpProtocol(self, shared_seed), host, port)
         print("got transport after connect: %s" % transport)
+        print("got protocol after connect: %s" % protocol.uuid)
         # TODO - return future?
         # add task to event loop and carry on?
         return transport, protocol
