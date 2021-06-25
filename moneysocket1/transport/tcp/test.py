@@ -32,12 +32,11 @@ class TestTcpNexus(Nexus):
         self.below_nexus.send_ping()
 
 
-
-
-class TestTcpClientLayer(Layer):
+class TestTcpLayer(Layer):
+    TCP_LAYER_CLASS = None
     def __init__(self):
         super().__init__()
-        self.tcp_layer = TcpClientLayer()
+        self.tcp_layer = self.TCP_LAYER_CLASS()
         self.register_above_layer(self.tcp_layer)
         self.tcp_layer.onpingresult = self.on_ping_result
         self.test_nexus = None
@@ -45,13 +44,12 @@ class TestTcpClientLayer(Layer):
         self.expects = []
 
     def announce_nexus(self, below_nexus):
-        print("test client layer announce")
         self.tcp_nexus = below_nexus
         self.test_nexus = TestTcpNexus(below_nexus, self)
-        self._track_nexus(self.test_nexus, below_nexus)
+        self.test_nexus.onmessage = self.on_message
+        self.test_nexus.onbinmessage = self.on_bin_message
 
     def revoke_nexus(self, below_nexus):
-        print("test client layer revoke")
         super().revoke_nexus(below_nexus)
 
     def check_expect(self, expect):
@@ -73,56 +71,27 @@ class TestTcpClientLayer(Layer):
         self.test_nexus.send_ping()
 
 
-class TestTcpServerLayer(Layer):
+class TestTcpClientLayer(TestTcpLayer):
+    TCP_LAYER_CLASS = TcpClientLayer
     def __init__(self):
         super().__init__()
-        self.tcp_layer = TcpServerLayer()
-        self.register_above_layer(self.tcp_layer)
-        self.tcp_layer.onpingresult = self.on_ping_result
-        self.server = None
-        self.expects = []
+
+    async def connect(self, host, port):
+        t, p = await self.tcp_layer.connect2(host, port)
+        print("client t: %s" % t)
+        print("client p: %s" % p)
 
 
-    def announce_nexus(self, below_nexus):
-        print("test client layer announce")
-        self.test_nexus = TestTcpNexus(below_nexus, self)
-        self._track_nexus(self.test_nexus, below_nexus)
-        self.tcp_nexus = below_nexus
-        self.test_nexus = TestTcpNexus(below_nexus, self)
-        self.test_nexus.onmessage = self.on_message
-        self.test_nexus.onbinmessage = self.on_bin_message
-
-
-    def revoke_nexus(self, below_nexus):
-        print("test client layer revoke")
-        super().revoke_nexus(below_nexus)
-
-
-    def check_expect(self, expect):
-        wanted = self.expects.pop()
-        assert wanted == expect
-
+class TestTcpServerLayer(TestTcpLayer):
+    TCP_LAYER_CLASS = TcpServerLayer
+    def __init__(self):
+        super().__init__()
 
     async def listen_server(self, host, port):
         self.server = await self.tcp_layer.listen_server(host, port)
 
     def close_server(self):
         self.server.close()
-
-    def on_message(self, below_nexus, msg):
-        pass
-
-    def on_bin_message(self, below_nexus, msg_bytes):
-        pass
-
-    def on_ping_result(self, below_nexus, ping_secs):
-        print("server layer got ping: %s" % ping_secs)
-        self.check_expect("PING_RESULT")
-
-    def send_ping(self):
-        print("sending ping")
-        self.test_nexus.send_ping()
-
 
 
 class TestTcp():
@@ -132,14 +101,12 @@ class TestTcp():
 
 
     async def connect_client(self):
-        t, p = await self.test_client_layer.tcp_layer.connect2(HOST, PORT)
-        print("client t: %s" % t)
-        print("client p: %s" % p)
+        await self.test_client_layer.connect(HOST, PORT)
+        print("client connected")
 
     async def start_server(self):
         await self.test_server_layer.listen_server(HOST, PORT)
         print("done")
-
 
     async def ping_from_client(self):
         self.test_client_layer.expects.append("PING_RESULT")
