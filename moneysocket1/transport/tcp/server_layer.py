@@ -7,7 +7,7 @@ import asyncio
 from ..layer import ServerTransportLayer
 
 from .protocol import TcpProtocol
-
+from ..nexus import TransportNexus
 
 
 class TcpServerLayer(ServerTransportLayer):
@@ -23,14 +23,19 @@ class TcpServerLayer(ServerTransportLayer):
         print("server: %s" % server)
         return server
 
+    def announce_nexus(self, below_nexus):
+        print("server announce nexus: %s" % below_nexus)
+        transport_nexus = TransportNexus(below_nexus, self)
+        transport_nexus.onpingresult = self.on_ping_result
+        self._track_nexus(transport_nexus, below_nexus)
+        self._track_nexus_announced(transport_nexus)
+        self.send_layer_event(transport_nexus, "NEXUS_ANNOUNCED");
+        if self.onannounce:
+            self.onannounce(transport_nexus)
 
-    def new_nexus(self, nexus):
-        print("announce: %s" % nexus)
-        # create nexus
-        # track nexus
-        # layer event
-        # announce
+    def on_ping_result(self, nexus, ping_secs):
+        print("got server layer ping result")
+        if self.onpingresult:
+            print("server layer ping result")
+            self.onpingresult(nexus, ping_secs)
 
-    def remove_nexus(self, nexus):
-        print("revoke: %s" % nexus)
-        self.revoke_nexus(nexus)

@@ -2,13 +2,16 @@
 # Distributed under the MIT software license, see the accompanying
 # file LICENSE or http://www.opensource.org/licenses/mit-license.php
 
+
 import asyncio
 import uuid
 
-from .nexus import TcpNexus
+from ...message.message import Message
 
 
 class TcpProtocol(asyncio.Protocol):
+    # Adapts tcp prococol to nexus behavior.
+    # Behaves like a nexus, but doesn't inherit.
     def __init__(self, layer, shared_seed):
         self.uuid = uuid.uuid4()
         self.layer = layer
@@ -21,15 +24,29 @@ class TcpProtocol(asyncio.Protocol):
         message = "hello from server"
         self.transport = transport
         #transport.write(message.encode())
-        self.layer.new_nexus(self)
+        self.layer.announce_nexus(self)
 
     def data_received(self, data):
-        print('Data received: {!r}'.format(data.decode()))
-        if self.onbinmessage:
-            self.onbinmessage(self, data.decode())
+        print('Data received: %s' % data.hex())
+        if not self.onbinmessage:
+            return
+        clear_msg, remainder = Message.pop_clear_message(data)
+        if clear_msg != None:
+            print("clear: %s" % clear_msg.hex())
+            print("remainder: %s" % remainder.hex())
+            # if there is a cleartext message, we can chop it off and pass up
+            self.onbinmessage(self, clear_msg)
+            # do this again for any remainder in case messages are
+            # concatenated
+            if len(remainder) > 0:
+                self.data_received(remainder)
+        else:
+            # if there is nothing to be understood, it might be cyphertext,
+            # so pass upwards as-is
+            self.onbinmessage(self, data)
 
     def connection_lost(self, exc):
-        self.layer.remove_nexus(self)
+        self.layer.revoke_nexus(self)
         print('The server closed the connection')
 
     ##########################################################################
@@ -38,9 +55,12 @@ class TcpProtocol(asyncio.Protocol):
 
     def send(self, msg):
         # encode
-        self.transport.write(msg.encode_bin())
+        m = msg.encode_bytes()
+        print("tcp nexus send: %d" % len(m))
+        self.transport.write(m)
 
     def send_bin(self, msg_bytes):
+        print("tcp nexus send bin: %d" % len(msg_bytes))
         self.transport.write(msg_bytes)
 
     def initiate_close(self):

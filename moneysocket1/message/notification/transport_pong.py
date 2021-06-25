@@ -23,5 +23,9 @@ class TransportPong(Notification):
             return err
         return None
 
+    @staticmethod
+    def new_message():
+        lo = TransportPong.new_language_object()
+        return TransportPong(lo)
 
 MESSAGE_DIRECTORY.register(TransportPong)

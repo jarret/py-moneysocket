@@ -17,5 +17,10 @@ class TransportPing(Request):
     def validate_subtype_data(language_object):
         return None
 
+    @staticmethod
+    def new_message():
+        lo = TransportPing.new_language_object()
+        return TransportPing(lo)
+
 
 MESSAGE_DIRECTORY.register(TransportPing)

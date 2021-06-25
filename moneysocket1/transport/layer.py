@@ -8,7 +8,7 @@ from ..layer import Layer
 class TransportLayer(Layer):
     def __init__(self):
         super().__init__()
-
+        self.onpingresult = None
 
 
 class ClientTransportLayer(TransportLayer):

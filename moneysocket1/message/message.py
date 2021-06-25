@@ -269,6 +269,15 @@ class Message():
               sender_version=sender_version)
         return m, None
 
+    @staticmethod
+    def pop_clear_message(message_bytes):
+        _, remainder, err = Tlv.pop(message_bytes)
+        if err:
+            return None, None
+        total_len = len(message_bytes)
+        remainder_len = len(remainder)
+        clear_len = total_len - remainder_len
+        return message_bytes[:clear_len], remainder
 
     def encode_bytes(self):
         sender_version_tlv = Tlv(SENDER_VERSION_TLV_TYPE,
@@ -293,7 +302,19 @@ class Message():
     def validate_subtype_data(language_object):
         raise NotImplementedError("implement in subclass")
 
+    @classmethod
+    def new_language_object(cls):
+        return {'timestamp':    time.time(),
+                'version':      Version.this_code_version().to_dict(),
+                'type':         cls.TYPE_NAME,
+                'subtype':      cls.SUBTYPE_NAME,
+                'subtype_data': {},
+                'request_uuid': str(uuid.uuid4()),
+                'features':     [],
+                'feature_data': {},
+               }
 
 
-from .request.transport_ping import TransportPing
-from .notification.transport_pong import TransportPong
+
+#from .request.transport_ping import TransportPing
+#from .notification.transport_pong import TransportPong
