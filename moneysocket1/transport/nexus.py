@@ -24,8 +24,9 @@ class TransportNexus(Nexus):
     def on_bin_message(self, below_nexus, msg_bytes):
         print("Transport nexus bin msg: %d" % len(msg_bytes))
         msg, err = Message.decode_bytes(msg_bytes)
-        print("decode err: %s" % err)
         if err:
+            print("failed to decode, might be cyphertext: %s" % err)
+            super().on_bin_message(below_nexus, msg_bytes)
             return
 
         if msg.language_object['type'] == "NOTIFICATION":

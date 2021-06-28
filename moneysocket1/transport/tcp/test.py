@@ -41,7 +41,13 @@ class TestTcpLayer(Layer):
         self.tcp_layer.onpingresult = self.on_ping_result
         self.test_nexus = None
         self.test_below_nexus = None
-        self.expects = []
+        self.ping_future = None
+        self.ping_timer = None
+        self.bin_message_future = None
+        self.bin_message_timer = None
+        self.bin_message_expected = None
+
+    ###########################################################################
 
     def announce_nexus(self, below_nexus):
         self.tcp_nexus = below_nexus
@@ -52,23 +58,53 @@ class TestTcpLayer(Layer):
     def revoke_nexus(self, below_nexus):
         super().revoke_nexus(below_nexus)
 
-    def check_expect(self, expect):
-        wanted = self.expects.pop()
-        assert wanted == expect
+    ###########################################################################
 
     def on_message(self, below_nexus, msg):
         pass
 
-    def on_bin_message(self, below_nexus, msg_bytes):
-        pass
+    ###########################################################################
 
     def on_ping_result(self, below_nexus, ping_secs):
         print("client layer got ping: %s" % ping_secs)
-        self.check_expect("PING_RESULT")
+        assert self.ping_future != None
+        self.ping_future.set_result("PING_RESULT_OK")
+        self.ping_timer.cancel()
+
+    def ping_timeout(self):
+        assert self.ping_future != None
+        self.ping_future.set_result("PING_RESULT_TIMEOUT")
 
     def send_ping(self):
+        loop = asyncio.get_running_loop()
+        self.ping_future = loop.create_future()
+        self.ping_timer = loop.call_later(1.0, self.ping_timeout)
         print("sending ping")
         self.test_nexus.send_ping()
+        return self.ping_future
+
+    ###########################################################################
+
+    def on_bin_message(self, below_nexus, msg_bytes):
+        print("test layer got: %s" % msg_bytes.hex())
+        assert msg_bytes == self.bin_message_expected
+        self.bin_message_future.set_result("BIN_MESSAGE_OK")
+        self.bin_message_timer.cancel()
+
+    def bin_message_timeout(self):
+        assert self.bin_message_future != None
+        self.bin_message_future.set_result("BIN_MESSAGE_TIMEOUT")
+
+    def send_bin_message(self, msg_bytes):
+        self.test_nexus.send_bin(msg_bytes)
+
+    def expect_bin_message(self, msg_bytes):
+        loop = asyncio.get_running_loop()
+        self.bin_message_future = loop.create_future()
+        self.bin_message_timer = loop.call_later(1.0, self.bin_message_timeout)
+        self.bin_message_expected = msg_bytes
+        print("sending msg_bytes")
+        return self.bin_message_future
 
 
 class TestTcpClientLayer(TestTcpLayer):
@@ -94,6 +130,10 @@ class TestTcpServerLayer(TestTcpLayer):
         self.server.close()
 
 
+###############################################################################
+# tcp client/server tests
+###############################################################################
+
 class TestTcp():
     def __init__(self):
         self.test_server_layer = TestTcpServerLayer()
@@ -108,21 +148,29 @@ class TestTcp():
         await self.test_server_layer.listen_server(HOST, PORT)
         print("done")
 
-    async def ping_from_client(self):
-        self.test_client_layer.expects.append("PING_RESULT")
-        self.test_client_layer.send_ping()
-
-    async def ping_from_server(self):
-        self.test_server_layer.expects.append("PING_RESULT")
-        self.test_server_layer.send_ping()
-
     async def run_tests(self):
-        await self.ping_from_client()
-        await asyncio.sleep(0.2)
-        assert len(self.test_client_layer.expects) == 0
-        await self.ping_from_server()
-        await asyncio.sleep(0.2)
-        assert len(self.test_server_layer.expects) == 0
+        # send ping both ways
+        fut = self.test_client_layer.send_ping()
+        print("fut: %s" % fut)
+        result = await fut
+        assert result == "PING_RESULT_OK"
+
+        fut = self.test_server_layer.send_ping()
+        result = await fut
+        assert result == "PING_RESULT_OK"
+
+        # send cyphertext both ways
+        fut = self.test_server_layer.expect_bin_message(b'deadbeef')
+        self.test_client_layer.send_bin_message(b'deadbeef')
+        result = await fut
+        assert result == "BIN_MESSAGE_OK"
+
+        fut = self.test_client_layer.expect_bin_message(b'beefdead')
+        self.test_server_layer.send_bin_message(b'beefdead')
+        result = await fut
+        assert result == "BIN_MESSAGE_OK"
+
+        # TODO - send and receive clear message
 
     async def run(self):
         print("setup")
