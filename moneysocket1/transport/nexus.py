@@ -5,8 +5,8 @@
 import time
 
 from ..nexus import Nexus
-from ..message.request.transport_ping import TransportPing
-from ..message.notification.transport_pong import TransportPong
+from .ping import TransportPing
+from .pong import TransportPong
 from ..message.message import Message
 
 

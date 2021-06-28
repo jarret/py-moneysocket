@@ -7,8 +7,8 @@ import unittest
 import json
 
 from .message import Message
-from .request.transport_ping import TransportPing
-from .notification.transport_pong import TransportPong
+from ..transport.ping import TransportPing
+from ..transport.pong import TransportPong
 from ..encoding.bigsize import BigSize
 
 def load_json_file(path):
