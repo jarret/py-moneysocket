@@ -25,7 +25,8 @@ class TransportNexus(Nexus):
         print("Transport nexus bin msg: %d" % len(msg_bytes))
         msg, err = Message.decode_bytes(msg_bytes)
         if err:
-            print("failed to decode, might be cyphertext: %s" % err)
+            print("failed to decode; might be cyphertext the above layer "
+                  "understands")
             super().on_bin_message(below_nexus, msg_bytes)
             return
 
@@ -41,8 +42,7 @@ class TransportNexus(Nexus):
                 print("transport ping")
                 self.send_pong()
                 return
-        super().on_bin_message(below_nexus, msg_bytes)
-        pass
+        super().on_message(below_nexus, msg)
 
     def on_message(self, below_nexus, msg):
         print("clear message")
