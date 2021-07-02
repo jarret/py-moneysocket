@@ -45,6 +45,7 @@ class TransportNexus(Nexus):
         super().on_message(below_nexus, msg)
 
     def on_message(self, below_nexus, msg):
+        # unlikely to get this on transport layer
         print("clear message")
         pass
 

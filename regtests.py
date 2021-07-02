@@ -7,8 +7,11 @@ import asyncio
 import sys
 
 from moneysocket1.transport.tcp.test import TestTcp
+from moneysocket1.rendezvous.test import TestRendezvous
 
-TESTS = [TestTcp()]
+#TESTS = [TestTcp()]
+#TESTS = [TestTcp(), TestRendezvous()]
+TESTS = [TestRendezvous()]
 
 if __name__ == '__main__':
     for test in TESTS:

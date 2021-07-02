@@ -42,19 +42,3 @@ class TcpClientLayer(ClientTransportLayer):
         # TODO - return future?
         # add task to event loop and carry on?
         return transport, protocol
-
-    def announce_nexus(self, below_nexus):
-        print("client announce nexus: %s" % below_nexus)
-        transport_nexus = TransportNexus(below_nexus, self)
-        transport_nexus.onpingresult = self.on_ping_result
-        self._track_nexus(transport_nexus, below_nexus)
-        self._track_nexus_announced(transport_nexus)
-        self.send_layer_event(transport_nexus, "NEXUS_ANNOUNCED");
-        if self.onannounce:
-            self.onannounce(transport_nexus)
-
-    def on_ping_result(self, nexus, ping_secs):
-        print("got server layer ping result")
-        if self.onpingresult:
-            print("server layer ping result")
-            self.onpingresult(nexus, ping_secs)
